@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>通信原理智能助教</title>
+
+    <!-- KaTeX for LaTeX Rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0KOVEMVIARBEGEONdA1dm8vexKGWFgd0tYxUiXMLPQbc5Bfqs4QI" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmFAILkI" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05" crossorigin="anonymous"></script>
+
+    <!-- highlight.js for Code Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/matlab.min.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient-start: #f0f4f8;
+            --bg-gradient-end: #e8eef5;
+            --primary-color: #2563eb;
+            --secondary-color: #3b82f6;
+            --accent-color: #60a5fa;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --user-msg-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bot-msg-bg: #ffffff;
+            --border-radius: 16px;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        /* General styles */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .chat-container { 
+            width: 100%; 
+            max-width: 900px; 
+            min-height: 600px;
+            max-height: 90vh;
+            background: var(--card-bg); 
+            backdrop-filter: blur(10px); 
+            border-radius: var(--border-radius); 
+            box-shadow: var(--shadow-lg); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+        
+        .chat-header { 
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); 
+            color: white; 
+            padding: 20px 30px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
+        }
+        
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .header-icon { width: 45px; height: 45px; background: rgba(255, 255, 255, 0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .header-title h1 { font-size: 1.4em; font-weight: 600; margin-bottom: 2px; }
+        .header-title p { font-size: 0.85em; opacity: 0.9; }
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        
+        .main-content { 
+            flex: 1; 
+            overflow: hidden; 
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        /* Settings Button */
+        #settings-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+        #settings-btn:hover { background: rgba(255, 255, 255, 0.3); }
+        #settings-btn svg { width: 22px; height: 22px; }
+
+        /* Settings Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            width: 90%;
+            max-width: 400px;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-header h2 { color: var(--text-primary); }
+        .modal-close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-secondary); }
+        .modal-body .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .modal-body label { font-weight: 500; color: var(--text-primary); }
+        #model-selector {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        /* Code Block Improvements */
+        .bot-message-content pre {
+            position: relative;
+            background: #282c34;
+            padding: 1.2em 1em 1em;
+            border-radius: 8px;
+            margin: 12px 0;
+            overflow-x: auto;
+        }
+        
+        .bot-message-content pre code {
+            display: block;
+            color: #abb2bf;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #4f5664;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            opacity: 0.7;
+            transition: opacity 0.3s, background 0.3s;
+            z-index: 10;
+        }
+        .bot-message-content pre:hover .copy-btn {
+            opacity: 1;
+        }
+        .copy-btn:hover {
+            background: #6b7280;
+        }
+        .copy-btn.copied {
+            background-color: #059669;
+        }
+
+        /* KaTeX Font Size Consistency */
+        .katex { font-size: 1.1em !important; }
+        
+        /* Status and animations */
+        .status-indicator { display: flex; align-items: center; gap: 8px; background: rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 20px; font-size: 0.85em; }
+        .status-dot { width: 8px; height: 8px; background: #4ade80; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+        
+        #initial-view { 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 40px; 
+            text-align: center; 
+            transition: opacity 0.5s ease, transform 0.5s ease; 
+        }
+        #initial-view.fade-out { opacity: 0; transform: scale(0.95); pointer-events: none; }
+        .hidden { display: none !important; }
+        
+        .welcome-animation { width: 120px; height: 120px; margin-bottom: 30px; position: relative; }
+        .signal-wave { position: absolute; width: 100%; height: 100%; border: 3px solid var(--primary-color); border-radius: 50%; animation: wave-expand 3s infinite; }
+        .signal-wave:nth-child(2) { animation-delay: 0.5s; }
+        .signal-wave:nth-child(3) { animation-delay: 1s; }
+        @keyframes wave-expand { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+        .signal-core { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; box-shadow: var(--shadow-md); }
+        
+        #initial-view h2 { font-size: 1.8em; color: var(--text-primary); margin-bottom: 10px; font-weight: 600; }
+        .subtitle { color: var(--text-secondary); margin-bottom: 30px; font-size: 1em; }
+        .suggestion-chips { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 600px; }
+        .chip { background: white; border: 2px solid var(--accent-color); color: var(--primary-color); padding: 10px 20px; border-radius: 25px; cursor: pointer; transition: all 0.3s ease; font-size: 0.9em; font-weight: 500; box-shadow: var(--shadow-sm); }
+        .chip:hover { background: var(--primary-color); color: white; transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        
+        .chat-box { 
+            flex: 1;
+            padding: 30px; 
+            overflow-y: auto; 
+            opacity: 0; 
+            transform: scale(0.95); 
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            display: none;
+            min-height: 0;
+        }
+        .chat-box.active { 
+            opacity: 1; 
+            transform: scale(1);
+            display: block;
+        }
+        .chat-box::-webkit-scrollbar { width: 8px; }
+        .chat-box::-webkit-scrollbar-track { background: transparent; }
+        .chat-box::-webkit-scrollbar-thumb { background: var(--accent-color); border-radius: 4px; }
+        
+        .message { margin-bottom: 20px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .user-message { display: flex; justify-content: flex-end; }
+        .user-message-content { background: var(--user-msg-bg); color: white; padding: 12px 18px; border-radius: 18px 18px 4px 18px; max-width: 70%; box-shadow: var(--shadow-sm); word-wrap: break-word; }
+        
+        .bot-message { display: flex; gap: 12px; align-items: flex-start; }
+        .bot-avatar { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+        .bot-message-content { 
+            background: var(--bot-msg-bg); 
+            padding: 12px 18px; 
+            border-radius: 4px 18px 18px 18px; 
+            max-width: 70%; 
+            box-shadow: var(--shadow-sm); 
+            border: 1px solid rgba(0,0,0,0.05);
+            word-wrap: break-word;
+        }
+        
+        .thinking { display: inline-flex; gap: 4px; padding: 8px; }
+        .thinking span { width: 8px; height: 8px; background: var(--primary-color); border-radius: 50%; animation: bounce 1.4s infinite; }
+        .thinking span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } }
+        
+        .chat-input-area { 
+            padding: 20px 30px; 
+            background: white; 
+            border-top: 1px solid rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        #chat-form { display: flex; gap: 12px; align-items: center; }
+        .input-wrapper { flex: 1; position: relative; }
+        #user-input { width: 100%; padding: 12px 20px; border: 2px solid #e5e7eb; border-radius: 25px; font-size: 1em; transition: all 0.3s ease; outline: none; }
+        #user-input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        
+        .input-buttons { display: flex; gap: 8px; }
+        .btn { padding: 10px; border: none; border-radius: 50%; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; }
+        .btn svg { width: 20px; height: 20px; }
+        #attach-btn { background: white; color: var(--text-secondary); border: 2px solid #e5e7eb; }
+        #attach-btn:hover { background: var(--bg-gradient-start); border-color: var(--primary-color); color: var(--primary-color); }
+        #send-btn { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; }
+        #send-btn:hover { transform: scale(1.05); box-shadow: var(--shadow-md); }
+        #send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        
+        .image-preview-area { 
+            padding: 10px 30px; 
+            background: white; 
+            display: none; 
+            border-top: 1px solid rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .image-preview-container { position: relative; display: inline-block; }
+        #preview-image { max-width: 100px; max-height: 100px; border-radius: 8px; border: 2px solid var(--accent-color); }
+        #remove-image-btn { position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; background: #ef4444; color: white; border: none; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); }
+        #remove-image-btn:hover { background: #dc2626; }
+        
+        .bot-message-content h1, .bot-message-content h2, .bot-message-content h3 { margin-top: 16px; margin-bottom: 8px; color: var(--text-primary); }
+        .bot-message-content p { margin-bottom: 12px; line-height: 1.6; }
+        .bot-message-content ul, .bot-message-content ol { margin-left: 20px; margin-bottom: 12px; }
+        .bot-message-content li { margin-bottom: 4px; }
+        .bot-message-content code:not(pre > code) { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.9em; color: var(--text-primary); }
+        .bot-message-content blockquote { border-left: 4px solid var(--primary-color); padding-left: 16px; margin: 12px 0; color: var(--text-secondary); }
+        .bot-message-content table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+        .bot-message-content th, .bot-message-content td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; }
+        .bot-message-content th { background: #f9fafb; font-weight: 600; }
+        
+        @media (max-width: 768px) { 
+            .chat-container { height: 100vh; max-width: 100%; border-radius: 0; } 
+            .suggestion-chips { padding: 0 20px; } 
+            .chip { font-size: 0.85em; padding: 8px 16px; } 
+            .user-message-content, .bot-message-content { max-width: 85%; } 
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-left">
+                <div class="header-icon">📡</div>
+                <div class="header-title">
+                    <h1>通信原理智能助教 - 小通</h1>
+                    <p>Communication Theory Assistant  Xiaotong</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span>在线</span>
+                </div>
+                <button id="settings-btn" title="设置">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div id="initial-view">
+                <div class="welcome-animation">
+                    <div class="signal-wave"></div><div class="signal-wave"></div><div class="signal-wave"></div>
+                    <div class="signal-core">📶</div>
+                </div>
+                <h2>欢迎来到通信原理学习平台</h2>
+                <p class="subtitle">我是您的智能助教“小通”，可以帮助您理解通信原理的各种概念</p>
+                <div class="suggestion-chips">
+                    <button class="chip">什么是香农定理？它在通信中的意义是什么？</button>
+                    <button class="chip">解释一下调制解调的基本原理</button>
+                    <button class="chip">OFDM技术的优缺点有哪些？</button>
+                    <button class="chip">如何计算信道容量？给个例子</button>
+                    <button class="chip">比较PSK、FSK和ASK调制方式</button>
+                </div>
+            </div>
+            <div class="chat-box" id="chat-box"></div>
+        </div>
+        
+        <div class="image-preview-area" id="image-preview-area">
+            <div class="image-preview-container">
+                <img id="preview-image" src="#" alt="预览图片" />
+                <button id="remove-image-btn" title="移除图片">&times;</button>
+            </div>
+        </div>
+        
+        <div class="chat-input-area">
+            <form id="chat-form">
+                <input type="file" id="image-input" accept="image/*" style="display: none;">
+                <div class="input-wrapper">
+                    <input type="text" id="user-input" placeholder="输入您的问题（可附带图片）..." autocomplete="off">
+                </div>
+                <div class="input-buttons">
+                    <button type="button" id="attach-btn" class="btn" title="上传图片">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                    </button>
+                    <button type="submit" id="send-btn" class="btn" title="发送">
+                        ➤
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>设置</h2>
+                <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="model-selector">选择AI模型</label>
+                    <select id="model-selector" disabled>
+                        <option>正在加载模型...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialView = document.getElementById('initial-view');
+            const chatBox = document.getElementById('chat-box');
+            const chatForm = document.getElementById('chat-form');
+            const userInput = document.getElementById('user-input');
+            const sendBtn = document.getElementById('send-btn');
+            const attachBtn = document.getElementById('attach-btn');
+            const imageInput = document.getElementById('image-input');
+            const imagePreviewArea = document.getElementById('image-preview-area');
+            const previewImage = document.getElementById('preview-image');
+            const removeImageBtn = document.getElementById('remove-image-btn');
+            const suggestionChips = document.querySelector('.suggestion-chips');
+            
+            // Settings Modal Elements
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modelSelector = document.getElementById('model-selector');
+
+            let isChatStarted = false;
+            let uploadedImage = null;
+            
+            // 存储对话历史（用于上下文理解）
+            let conversationHistory = [];
+            const MAX_CONTEXT_MESSAGES = 10; // 保留最近10条对话作为上下文
+
+            const CLAUDE_API_KEY = 'sk-uxbZn5WiQiCWEobpkjJukJJpVrcNClO1y3vUnMwoQpluzEFW';
+            const API_BASE_URL = 'https://chat.cloudapi.vip/v1';
+            
+            let selectedModel = ''; 
+
+            const SYSTEM_PROMPT = `你是一位专业的通信原理助教，专门帮助学生理解和掌握通信原理相关知识。你的职责包括：解释通信原理的基本概念和理论, 帮助解答作业和考试相关问题, 提供实际应用案例和仿真示例, 用通俗易懂的语言解释复杂概念, 当涉及数学公式时，提供详细的推导过程。请用友好、耐心的语气回答问题，并在必要时使用图表、公式或代码示例来辅助说明。默认使用中文进行回复。公式请使用LaTeX格式（行内用$...$，块级用$$...$$）。代码请使用markdown格式，并指定语言类型。`;
+            
+            // Configure marked
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        try {
+                            return hljs.highlight(code, { language: lang }).value;
+                        } catch (err) {
+                            console.error('代码高亮错误:', err);
+                        }
+                    }
+                    return hljs.highlightAuto(code).value;
+                },
+                breaks: true,
+                gfm: true
+            });
+
+            // Model selector functions
+            async function populateModelSelector() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/models`, {
+                        headers: { 'Authorization': `Bearer ${CLAUDE_API_KEY}` }
+                    });
+                    if (!response.ok) throw new Error(`无法获取模型列表, 状态: ${response.status}`);
+                    const data = await response.json();
+                    const claudeModels = data.data.map(model => model.id).filter(id => id.includes('claude'));
+                    if (claudeModels.length === 0) throw new Error("API未返回任何可用的Claude模型。");
+
+                    modelSelector.innerHTML = ''; 
+                    const preferredModels = ['claude-3-5-sonnet-latest', 'claude-3-opus-latest', 'claude-3-sonnet-latest', 'claude-3-haiku-latest'];
+                    let bestAvailableModel = claudeModels.find(m => preferredModels.includes(m)) || claudeModels[0];
+                    
+                    claudeModels.forEach(modelId => {
+                        const option = document.createElement('option');
+                        option.value = modelId;
+                        option.textContent = modelId;
+                        if (modelId === bestAvailableModel) option.selected = true;
+                        modelSelector.appendChild(option);
+                    });
+                    
+                    selectedModel = bestAvailableModel;
+                    modelSelector.disabled = false;
+                } catch (error) {
+                    console.error('获取模型列表失败:', error);
+                    modelSelector.innerHTML = `<option>获取模型失败</option>`;
+                }
+            }
+            
+            // Settings Modal
+            settingsBtn.addEventListener('click', () => settingsModal.style.display = 'flex');
+            modalCloseBtn.addEventListener('click', () => settingsModal.style.display = 'none');
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) settingsModal.style.display = 'none';
+            });
+            modelSelector.addEventListener('change', (event) => {
+                selectedModel = event.target.value;
+                console.log(`用户切换模型为: ${selectedModel}`);
+            });
+
+            // Form submission
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const message = userInput.value.trim();
+                if ((!message && !uploadedImage) || !selectedModel) return;
+                
+                // 添加用户消息到历史记录
+                const userMsg = { role: 'user', content: message };
+                if (uploadedImage) {
+                    userMsg.image = uploadedImage;
+                }
+                conversationHistory.push(userMsg);
+                
+                appendMessage('user', message, uploadedImage ? uploadedImage.previewUrl : null);
+                await getAiResponse(message, uploadedImage);
+                userInput.value = '';
+                removeUploadedImage();
+            });
+            
+            suggestionChips.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('chip')) {
+                    const message = e.target.innerText;
+                    conversationHistory.push({ role: 'user', content: message });
+                    appendMessage('user', message);
+                    await getAiResponse(message, null);
+                }
+            });
+
+            // AI Response with context
+            async function getAiResponse(message, image) {
+                switchToChatView();
+                setFormDisabled(true);
+                const botMessageContainer = appendMessage('bot', '');
+                const contentElement = botMessageContainer.querySelector('.bot-message-content');
+                
+                // 准备消息历史（包含上下文）
+                const messages = [];
+                
+                // 添加历史对话作为上下文（只包含文本消息）
+                const contextMessages = conversationHistory.slice(-MAX_CONTEXT_MESSAGES);
+                for (let i = 0; i < contextMessages.length - 1; i++) {
+                    const msg = contextMessages[i];
+                    if (msg.role === 'user') {
+                        messages.push({ 
+                            role: 'user', 
+                            content: msg.content 
+                        });
+                    } else if (msg.role === 'assistant') {
+                        messages.push({ 
+                            role: 'assistant', 
+                            content: msg.content 
+                        });
+                    }
+                }
+                
+                // 添加当前用户消息
+                const userMessageContent = [];
+                if (message) userMessageContent.push({ "type": "text", "text": message });
+                if (image) userMessageContent.push({ 
+                    "type": "image_url", 
+                    "image_url": { "url": `data:${image.mimeType};base64,${image.data}` } 
+                });
+                messages.push({ "role": "user", "content": userMessageContent });
+                
+                const requestBody = { 
+                    "model": selectedModel, 
+                    "system": SYSTEM_PROMPT, 
+                    "messages": messages, 
+                    "max_tokens": 4096, 
+                    "stream": true 
+                };
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/chat/completions`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${CLAUDE_API_KEY}` 
+                        },
+                        body: JSON.stringify(requestBody),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`HTTP 错误！状态: ${response.status} - ${errorData.error?.message || '未知错误'}`);
+                    }
+                    
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let fullResponse = "";
+                    
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const dataStr = line.substring(6);
+                                if (dataStr === '[DONE]') break;
+                                try {
+                                    const data = JSON.parse(dataStr);
+                                    if (data.choices && data.choices[0].delta && data.choices[0].delta.content) {
+                                        fullResponse += data.choices[0].delta.content;
+                                        contentElement.innerHTML = DOMPurify.sanitize(marked.parse(fullResponse));
+                                        
+                                        // MODIFICATION: Process content on each stream update for live rendering
+                                        postProcessMessage(contentElement);
+                                        
+                                        scrollToBottom();
+                                    }
+                                } catch (e) {
+                                    console.error("解析JSON块失败:", dataStr, e);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 添加助手回复到历史记录
+                    conversationHistory.push({ role: 'assistant', content: fullResponse });
+                    
+                    // 限制历史记录长度
+                    if (conversationHistory.length > MAX_CONTEXT_MESSAGES * 2) {
+                        conversationHistory = conversationHistory.slice(-MAX_CONTEXT_MESSAGES);
+                    }
+
+                } catch (error) {
+                    contentElement.innerHTML = `<p style="color: #ef4444;">❌ 抱歉，API请求失败: ${error.message}</p>`;
+                    console.error('Error:', error);
+                } finally {
+                    setFormDisabled(false);
+                    userInput.focus();
+                }
+            }
+
+            // Post-processing for code blocks and LaTeX
+            function postProcessMessage(element) {
+                // 1. Add copy buttons and highlight code blocks
+                const codeBlocks = element.querySelectorAll('pre');
+                codeBlocks.forEach(block => {
+                    if (!block.querySelector('.copy-btn')) {
+                        const copyBtn = document.createElement('button');
+                        copyBtn.className = 'copy-btn';
+                        copyBtn.innerText = '复制';
+                        block.appendChild(copyBtn);
+
+                        copyBtn.addEventListener('click', () => {
+                            const code = block.querySelector('code');
+                            const codeText = code ? code.innerText : '';
+                            navigator.clipboard.writeText(codeText).then(() => {
+                                copyBtn.innerText = '已复制!';
+                                copyBtn.classList.add('copied');
+                                setTimeout(() => {
+                                    copyBtn.innerText = '复制';
+                                    copyBtn.classList.remove('copied');
+                                }, 2000);
+                            }).catch(err => {
+                                console.error('复制失败:', err);
+                            });
+                        });
+                    }
+                    const code = block.querySelector('code');
+                    if (code && !code.classList.contains('hljs')) {
+                        hljs.highlightElement(code);
+                    }
+                });
+
+                // 2. Render LaTeX
+                if (typeof renderMathInElement === 'function') {
+                    renderMathInElement(element, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false}
+                        ],
+                        throwOnError: false
+                    });
+                }
+            }
+
+            // Utility functions
+            attachBtn.addEventListener('click', () => imageInput.click());
+            imageInput.addEventListener('change', handleImageSelection);
+            removeImageBtn.addEventListener('click', removeUploadedImage);
+            
+            function switchToChatView() {
+                if (isChatStarted) return;
+                initialView.classList.add('fade-out');
+                setTimeout(() => {
+                    initialView.classList.add('hidden');
+                    chatBox.classList.add('active');
+                }, 300);
+                isChatStarted = true;
+            }
+            
+            function handleImageSelection(event) {
+                const file = event.target.files[0]; 
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64String = e.target.result;
+                    uploadedImage = { 
+                        data: base64String.split(',')[1], 
+                        mimeType: file.type, 
+                        previewUrl: base64String 
+                    };
+                    previewImage.src = uploadedImage.previewUrl;
+                    imagePreviewArea.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            function removeUploadedImage() { 
+                uploadedImage = null; 
+                imageInput.value = ''; 
+                imagePreviewArea.style.display = 'none'; 
+            }
+            
+            function setFormDisabled(disabled) { 
+                userInput.disabled = disabled; 
+                sendBtn.disabled = disabled; 
+                attachBtn.disabled = disabled; 
+            }
+            
+            function appendMessage(sender, text, imageUrl = null) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', `${sender}-message`);
+                if (sender === 'bot') {
+                    messageElement.innerHTML = `
+                        <div class="bot-avatar">🤖</div>
+                        <div class="bot-message-content">
+                            <div class="thinking">
+                                <span></span><span></span><span></span>
+                            </div>
+                        </div>`;
+                    // The thinking animation will be replaced by content as it streams in
+                } else {
+                    const contentDiv = document.createElement('div');
+                    contentDiv.classList.add('user-message-content');
+                    if (text) {
+                        const textP = document.createElement('p'); 
+                        textP.innerText = text; 
+                        contentDiv.appendChild(textP);
+                    }
+                    if (imageUrl) {
+                        const img = document.createElement('img'); 
+                        img.src = imageUrl; 
+                        img.style.cssText = 'max-width: 200px; margin-top: 8px; border-radius: 8px;'; 
+                        contentDiv.appendChild(img);
+                    }
+                    messageElement.appendChild(contentDiv);
+                }
+                chatBox.appendChild(messageElement);
+                scrollToBottom();
+                return messageElement;
+            }
+            
+            function scrollToBottom() { 
+                chatBox.scrollTop = chatBox.scrollHeight; 
+            }
+
+            // Initialize
+            populateModelSelector();
+            
+            // 自动调整聊天容器高度
+            function adjustChatContainerHeight() {
+                const chatContainer = document.querySelector('.chat-container');
+                const viewportHeight = window.innerHeight;
+                const padding = 40; // 上下padding
+                
+                if (viewportHeight < 700) {
+                    chatContainer.style.maxHeight = '100vh';
+                    chatContainer.style.height = '100vh';
+                } else {
+                    chatContainer.style.maxHeight = '90vh';
+                    chatContainer.style.height = 'auto';
+                }
+            }
+            
+            // 监听窗口大小变化
+            window.addEventListener('resize', adjustChatContainerHeight);
+            adjustChatContainerHeight();
+        });
+    </script>
+</body>
+</html>
